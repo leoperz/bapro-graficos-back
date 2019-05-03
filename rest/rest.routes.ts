@@ -98,7 +98,7 @@ router.post('/loguearUsuario', (req:Request, res:Response)=>{
                         token: metodos.cifrado(data)
                     });
                 }else{
-                    res.status(400).send({messagge:'error en el usuario o la contraseña'})
+                    res.status(400).send({messagge:'usuario o contraseña incorrecta'})
                 }
            });
        }
