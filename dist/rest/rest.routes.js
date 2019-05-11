@@ -21,6 +21,8 @@ const fs = require('fs');
 const path = require('path');
 const incidentes_1 = __importDefault(require("../schemas/incidentes"));
 const moment = require("moment");
+const server_1 = __importDefault(require("../clases/server"));
+const incidentes_2 = __importDefault(require("../schemas/incidentes"));
 exports.router = express_1.Router();
 exports.router.post('/actualizarUsuario', (req, res) => {
     console.log('entra a actualizar usuario: ', req.body);
@@ -94,11 +96,26 @@ exports.router.post('/loguearUsuario', (req, res) => {
                     });
                 }
                 else {
-                    res.status(400).send({ messagge: 'error en el usuario o la contraseña' });
+                    res.status(400).send({ messagge: 'usuario o contraseña incorrecta' });
                 }
             });
         }
     });
+});
+exports.router.post('/adjuntarArchivo', [multipartMiddleware], (req, res) => {
+    if (req.files) {
+        let file_path = req.files.image.path;
+        let file_split = file_path.split('\\');
+        let file_name = file_split[2];
+        let ext_split = file_name.split('\.');
+        let file_ext = ext_split[1];
+        if (file_ext == 'png' || file_ext == 'jpg' || file_ext == 'jpeg' || file_ext == 'doc' || file_ext == 'docx' || file_ext == 'pdf') {
+            res.json(file_name);
+        }
+        else {
+            res.status(200).send({ messagge: 'Extension no permitida' });
+        }
+    }
 });
 exports.router.post('/subirImagen/:id', [ensureAuth.ensureAuth, multipartMiddleware], (req, res) => {
     let id = req.params.id;
@@ -143,7 +160,10 @@ exports.router.get('/obtenerImagen/:imageFile', (req, res) => {
 /*
     Metodos REST para la gestion de incidentes
 */
+// Da de alta el incidente e informa mediante socket la cantidad total de incidentes
 exports.router.post('/altaIncidente', (req, res) => {
+    const server = server_1.default.getInstancia();
+    var numero = 0;
     let fechaActual = {
         dia: moment().date(),
         mes: moment().month(),
@@ -151,21 +171,61 @@ exports.router.post('/altaIncidente', (req, res) => {
     };
     const inc = new incidentes_1.default();
     let params = req.body;
-    console.log(params);
-    inc.titulo = params.incidentes;
+    inc.titulo = params.titulo;
     inc.descripcion = params.descripcion;
-    /*inc.fechaAlta = fechaActual;
-    inc.fechaAparicion = params.fecha_primer_reclamo;
+    inc.fechaAlta = fechaActual;
     inc.adjunto = params.adjunto;
+    inc.estado = params.estado;
+    inc.fechaAparicion = {
+        dia: params.fecha_primer_reclamo.day,
+        mes: params.fecha_primer_reclamo.month,
+        año: params.fecha_primer_reclamo.year
+    };
     inc.numeroSpring = params.numeroSpring;
-    inc.trxAsociada = params.trxAsociada*/
-    res.json(inc);
+    inc.trxAsociada = params.trxAsociada;
     inc.save((err, data) => {
         if (err) {
-            res.status(404).send({ messagge: 'Error al guardar el incidente' });
+            res.status(404).send({ messagge: 'Error al guardar el incidente', data: err });
         }
         else {
+            //se dio de alta el incidente debo informar la cantidad total
+            incidentes_1.default.count((err, data) => {
+                if (err) {
+                    console.log("error al consultar la cantidad de incidentes");
+                }
+                else {
+                    console.log(data);
+                    numero = data;
+                    res.json({
+                        messagge: data,
+                        cantidadTotal: numero
+                    });
+                    console.log(numero);
+                    server.io.emit('cantidad-incidentes', numero);
+                }
+            });
+        }
+    });
+});
+exports.router.get('/cantidadIncidentes', (req, res) => {
+    incidentes_2.default.count((err, data) => {
+        if (!err) {
             res.json(data);
+        }
+    });
+});
+exports.router.get('/cantidadIncidentesPorEstado', (req, res) => {
+    incidentes_2.default.aggregate([{
+            $group: {
+                _id: '$estado',
+                count: { $sum: 1 }
+            }
+        }], (err, result) => {
+        if (err) {
+            res.json(err);
+        }
+        else {
+            res.json(result);
         }
     });
 });

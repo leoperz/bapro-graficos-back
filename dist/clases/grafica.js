@@ -3,7 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 class Grafica {
     constructor() {
         this.meses = ['enero', 'febrero', 'marzo', 'abril'];
-        this.valores = [1, 2, 3, 4];
+        this.valores = [1, 2, 3, 8];
     }
     getDataGrafica() {
         return [

@@ -2,7 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 class Barras {
     constructor() {
-        this.valores = [70, 45, 90, 81, 56, 56, 40];
+        this.valores = [65, 59, 80, 81, 56, 55, 40];
         this.labels = ['Roberto', 'Javier', 'Felipe', 'Matias', 'German', 'Ignacio', 'Alfredo'];
     }
     getBarChart() {

@@ -9,6 +9,10 @@ const fs = require('fs');
 const path = require('path');
 import incidente from '../schemas/incidentes';
 import moment = require("moment");
+import Server from '../clases/server';
+import incidentes from '../schemas/incidentes';
+
+
 
 
 
@@ -106,6 +110,22 @@ router.post('/loguearUsuario', (req:Request, res:Response)=>{
    
     });
 
+    router.post('/adjuntarArchivo',[multipartMiddleware],(req:any, res:Response)=>{
+        if(req.files){
+            let file_path = req.files.image.path;
+            let file_split = file_path.split('\\');
+            let file_name = file_split[2];
+            let ext_split =     file_name.split('\.');
+            let file_ext = ext_split[1];
+
+            if(file_ext =='png'|| file_ext =='jpg'|| file_ext =='jpeg'|| file_ext =='doc' || file_ext == 'docx' || file_ext == 'pdf'){
+                res.json(file_name);
+            }else{
+                res.status(200).send({messagge:'Extension no permitida'});
+            }
+        }
+    });
+
 
     router.post('/subirImagen/:id',[ensureAuth.ensureAuth, multipartMiddleware] ,(req:any, res: Response)=>{
         
@@ -119,7 +139,7 @@ router.post('/loguearUsuario', (req:Request, res:Response)=>{
             let file_path = req.files.image.path;
             let file_split = file_path.split('\\');
             file_name = file_split[2];
-            let ext_split =     file_name.split('\.');
+            let ext_split = file_name.split('\.');
             let file_ext = ext_split[1];
 
             if(file_ext =='png'|| file_ext =='jpg'|| file_ext =='jpeg'|| file_ext =='gift'){
@@ -161,8 +181,16 @@ router.get('/obtenerImagen/:imageFile',(req:Request, res:Response)=>{
     Metodos REST para la gestion de incidentes
 */
 
+
+// Da de alta el incidente e informa mediante socket la cantidad total de incidentes
 router.post('/altaIncidente',(req:Request, res:Response)=>{
-    
+   
+   
+   
+
+    const server =  Server.getInstancia();
+    var numero: number=0;
+
     let fechaActual:any = {
         dia : moment().date(),
         mes: moment().month(),
@@ -172,27 +200,84 @@ router.post('/altaIncidente',(req:Request, res:Response)=>{
     
     const inc = new incidente();
     let params = req.body;
-    console.log(params);
-    inc.titulo = params.incidentes;
+   
+    inc.titulo = params.titulo;
     inc.descripcion = params.descripcion;
-    /*inc.fechaAlta = fechaActual;
-    inc.fechaAparicion = params.fecha_primer_reclamo;
+    inc.fechaAlta = fechaActual;
     inc.adjunto = params.adjunto;
+    inc.estado = params.estado;
+    inc.fechaAparicion  = {
+        dia:  params.fecha_primer_reclamo.day,
+        mes : params.fecha_primer_reclamo.month,
+        año : params.fecha_primer_reclamo.year
+    }
     inc.numeroSpring = params.numeroSpring;
-    inc.trxAsociada = params.trxAsociada*/
-    res.json(inc);
+    inc.trxAsociada = params.trxAsociada
+    
 
     inc.save((err, data)=>{
         if(err){
-            res.status(404).send({messagge:'Error al guardar el incidente'});
+            res.status(404).send({messagge:'Error al guardar el incidente', data: err});
         }else{
-            res.json(data);
+
+           //se dio de alta el incidente debo informar la cantidad total
+           incidente.count((err:any, data:number)=>{
+            
+          if(err){
+              console.log("error al consultar la cantidad de incidentes");
+
+          }else{
+              console.log(data);
+              numero = data;
+              
+              res.json({
+                messagge: data,
+                cantidadTotal: numero
+            });
+           console.log(numero);
+           server.io.emit('cantidad-incidentes',numero);
+          }
+
+           });
+           
+          
+           
         }
     });
 
     
 
 });
+
+
+router.get('/cantidadIncidentes',(req:Request, res:Response)=>{
+    incidentes.count((err:any, data:number)=>{
+        if(!err){
+            res.json(data);
+        }
+    });
+});
+
+router.get('/cantidadIncidentesPorEstado', (req:Request, res:Response)=>{
+  
+    incidentes.aggregate([{
+        $group:{
+            _id:'$estado',
+            count:{$sum:1}
+        }
+    }], 
+        (err:any, result:any)=>{
+            if(err){
+                res.json(err);
+            }else{
+                res.json(result);
+            }
+        }
+    );
+});
+
+
+
 
 
  

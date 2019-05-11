@@ -11,5 +11,11 @@ const mongoose_1 = __importStar(require("mongoose"));
 const IncidenteSchema = new mongoose_1.Schema({
     titulo: { required: true, type: String },
     descripcion: { required: true, type: String },
+    fechaAlta: { required: false, type: Object },
+    fechaAparicion: { required: false, type: Object },
+    adjunto: { required: false, type: String },
+    numeroSpring: { required: false, type: String },
+    trxAsociada: { required: false, type: String },
+    estado: { required: true, type: String }
 });
 exports.default = mongoose_1.default.model('Incidente', IncidenteSchema);
