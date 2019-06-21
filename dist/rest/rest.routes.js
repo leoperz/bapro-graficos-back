@@ -23,7 +23,10 @@ const incidentes_1 = __importDefault(require("../schemas/incidentes"));
 const moment = require("moment");
 const server_1 = __importDefault(require("../clases/server"));
 const incidentes_2 = __importDefault(require("../schemas/incidentes"));
+const equipos_1 = __importDefault(require("../schemas/equipos"));
+const lineChart_1 = require("../clases/lineChart");
 exports.router = express_1.Router();
+const lineChart = new lineChart_1.LineChart();
 exports.router.post('/actualizarUsuario', (req, res) => {
     console.log('entra a actualizar usuario: ', req.body);
     let correo = req.body.correo;
@@ -171,6 +174,7 @@ exports.router.post('/altaIncidente', (req, res) => {
     };
     const inc = new incidentes_1.default();
     let params = req.body;
+    let correo = params.correo;
     inc.titulo = params.titulo;
     inc.descripcion = params.descripcion;
     inc.fechaAlta = fechaActual;
@@ -183,25 +187,33 @@ exports.router.post('/altaIncidente', (req, res) => {
     };
     inc.numeroSpring = params.numeroSpring;
     inc.trxAsociada = params.trxAsociada;
-    inc.save((err, data) => {
-        if (err) {
-            res.status(404).send({ messagge: 'Error al guardar el incidente', data: err });
+    usuario_1.default.findOne({ correo }, (error, data) => {
+        if (error) {
+            res.status(404).send({ messagge: "Error en la peticion" });
         }
-        else {
-            //se dio de alta el incidente debo informar la cantidad total
-            incidentes_1.default.count((err, data) => {
+        if (data) {
+            inc.usuario = data._id;
+            inc.save((err, data) => {
                 if (err) {
-                    console.log("error al consultar la cantidad de incidentes");
+                    res.status(404).send({ messagge: 'Error al guardar el incidente', data: err });
                 }
                 else {
-                    console.log(data);
-                    numero = data;
-                    res.json({
-                        messagge: data,
-                        cantidadTotal: numero
+                    //se dio de alta el incidente debo informar la cantidad total
+                    incidentes_1.default.count((err, data) => {
+                        if (err) {
+                            console.log("error al consultar la cantidad de incidentes");
+                        }
+                        else {
+                            console.log(data);
+                            numero = data;
+                            res.json({
+                                messagge: data,
+                                cantidadTotal: numero
+                            });
+                            console.log(numero);
+                            server.io.emit('cantidad-incidentes', numero);
+                        }
                     });
-                    console.log(numero);
-                    server.io.emit('cantidad-incidentes', numero);
                 }
             });
         }
@@ -226,6 +238,37 @@ exports.router.get('/cantidadIncidentesPorEstado', (req, res) => {
         }
         else {
             res.json(result);
+        }
+    });
+});
+exports.router.get('/incidentesNuevos', (req, res) => {
+    incidentes_2.default.find({ estado: 'nuevo' }, (err, data) => {
+        if (data) {
+            res.json(data);
+        }
+        else {
+            res.status(404).send({ messagge: 'Error al ejecutar la transaccion' });
+        }
+    }).populate('usuario');
+});
+exports.router.get('/lineChart', (req, res) => {
+    res.json(lineChart.getData());
+});
+exports.router.post('/lineChart', (req, res) => {
+    const mes = req.body.mes;
+    const unidades = Number(req.body.unidades);
+    const server = server_1.default.getInstancia();
+    lineChart.cambiarValor(mes, unidades);
+    server.io.emit('line-chart', lineChart.getData());
+    res.json(lineChart.getData());
+});
+exports.router.get('/equipos', (req, res) => {
+    equipos_1.default.find((err, data) => {
+        if (err) {
+            res.json(err);
+        }
+        else {
+            res.json(data);
         }
     });
 });

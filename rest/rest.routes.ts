@@ -11,6 +11,8 @@ import incidente from '../schemas/incidentes';
 import moment = require("moment");
 import Server from '../clases/server';
 import incidentes from '../schemas/incidentes';
+import equipos from '../schemas/equipos'
+import { LineChart } from '../clases/lineChart';
 
 
 
@@ -19,6 +21,7 @@ import incidentes from '../schemas/incidentes';
 
 
 export const router = Router();
+const lineChart = new LineChart(); 
 
 router.post('/actualizarUsuario', (req:Request, res:Response)=>{
 console.log('entra a actualizar usuario: ', req.body);
@@ -97,6 +100,7 @@ router.post('/loguearUsuario', (req:Request, res:Response)=>{
        }else{
            bcrypt.compare(password, data.password, function(err, check){
                 if(check){
+                  
                     res.status(200).send({
                         usuario:data,
                         token: metodos.cifrado(data)
@@ -200,7 +204,8 @@ router.post('/altaIncidente',(req:Request, res:Response)=>{
     
     const inc = new incidente();
     let params = req.body;
-   
+    let correo = params.correo;
+    
     inc.titulo = params.titulo;
     inc.descripcion = params.descripcion;
     inc.fechaAlta = fechaActual;
@@ -214,36 +219,47 @@ router.post('/altaIncidente',(req:Request, res:Response)=>{
     inc.numeroSpring = params.numeroSpring;
     inc.trxAsociada = params.trxAsociada
     
-
-    inc.save((err, data)=>{
-        if(err){
-            res.status(404).send({messagge:'Error al guardar el incidente', data: err});
-        }else{
-
-           //se dio de alta el incidente debo informar la cantidad total
-           incidente.count((err:any, data:number)=>{
+    usuario.findOne({correo}, (error, data)=>{
+        if(error){
+            res.status(404).send({messagge:"Error en la peticion"});
+        }
+        if(data){
             
-          if(err){
-              console.log("error al consultar la cantidad de incidentes");
-
-          }else{
-              console.log(data);
-              numero = data;
-              
-              res.json({
-                messagge: data,
-                cantidadTotal: numero
+            inc.usuario = data._id;
+            inc.save((err, data)=>{
+                if(err){
+                    res.status(404).send({messagge:'Error al guardar el incidente', data: err});
+                }else{
+        
+                   //se dio de alta el incidente debo informar la cantidad total
+                   incidente.count((err:any, data:number)=>{
+                    
+                  if(err){
+                      console.log("error al consultar la cantidad de incidentes");
+        
+                  }else{
+                      console.log(data);
+                      numero = data;
+                      
+                      res.json({
+                        messagge: data,
+                        cantidadTotal: numero
+                    });
+                   console.log(numero);
+                   server.io.emit('cantidad-incidentes',numero);
+                  }
+        
+                   });
+                   
+                  
+                   
+                }
             });
-           console.log(numero);
-           server.io.emit('cantidad-incidentes',numero);
-          }
-
-           });
-           
-          
-           
         }
     });
+
+    
+   
 
     
 
@@ -277,8 +293,46 @@ router.get('/cantidadIncidentesPorEstado', (req:Request, res:Response)=>{
 });
 
 
+router.get('/incidentesNuevos', (req:Request, res:Response)=>{
+    
+    incidentes.find({estado:'nuevo'},(err, data)=>{
+        if(data){
+            res.json(data);
+        }else{
+            res.status(404).send({messagge:'Error al ejecutar la transaccion'});
+        }
+    }).populate('usuario');
+});
 
 
+
+
+router.get('/lineChart', (req:Request, res:Response)=>{
+    res.json(lineChart.getData());
+});
+
+
+router.post('/lineChart', (req:Request, res:Response)=>{
+    const mes = req.body.mes;
+    const unidades = Number(req.body.unidades);
+    const server = Server.getInstancia();
+
+    lineChart.cambiarValor(mes,unidades);
+    
+    server.io.emit('line-chart', lineChart.getData() );
+    res.json(lineChart.getData());
+    
+});
+
+router.get('/equipos', (req:Request, res:Response)=>{
+    equipos.find((err, data)=>{
+        if(err){
+            res.json(err);
+        }else{
+            res.json(data);
+        }
+    });
+});
 
  
 

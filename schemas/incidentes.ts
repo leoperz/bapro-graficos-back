@@ -1,5 +1,7 @@
 import mongoose, {Schema, Document} from 'mongoose';
 
+
+
 export interface Incidente extends Document{
     titulo: string,
     descripcion: string,
@@ -16,7 +18,9 @@ export interface Incidente extends Document{
     adjunto:string,
     numeroSpring:string,
     trxAsociada: string,
-    estado:string
+    estado:string,
+    usuario : string
+   
 
 }
 const IncidenteSchema : Schema = new Schema({
@@ -27,7 +31,8 @@ const IncidenteSchema : Schema = new Schema({
     adjunto: {required: false, type: String},
     numeroSpring: {required: false, type: String},
     trxAsociada:{required: false, type: String},
-    estado: {required:true, type:String}
+    estado: {required:true, type:String},
+    usuario: {required:true, type: Schema.Types.ObjectId, ref:"Usuario" }
 });
 
 export default mongoose.model<Incidente>('Incidente', IncidenteSchema);

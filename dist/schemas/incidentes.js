@@ -16,6 +16,7 @@ const IncidenteSchema = new mongoose_1.Schema({
     adjunto: { required: false, type: String },
     numeroSpring: { required: false, type: String },
     trxAsociada: { required: false, type: String },
-    estado: { required: true, type: String }
+    estado: { required: true, type: String },
+    usuario: { required: true, type: mongoose_1.Schema.Types.ObjectId, ref: "Usuario" }
 });
 exports.default = mongoose_1.default.model('Incidente', IncidenteSchema);
