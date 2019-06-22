@@ -20,6 +20,7 @@ const multipartMiddleware = multipart({ uploadDir: './assets/img' });
 const fs = require('fs');
 const path = require('path');
 const incidentes_1 = __importDefault(require("../schemas/incidentes"));
+const incidentes_asignados_1 = __importDefault(require("../schemas/incidentes_asignados"));
 const moment = require("moment");
 const server_1 = __importDefault(require("../clases/server"));
 const incidentes_2 = __importDefault(require("../schemas/incidentes"));
@@ -269,6 +270,28 @@ exports.router.get('/equipos', (req, res) => {
         }
         else {
             res.json(data);
+        }
+    });
+});
+exports.router.post('/asignarIncidente', (req, res) => {
+    const _idEquipo = req.body._idEquipo;
+    const _idIncidente = req.body._idIncidente;
+    const inc_asig = new incidentes_asignados_1.default();
+    incidentes_1.default.findByIdAndUpdate(_idEquipo, { estado: "Asignado" }, (err, data) => {
+        if (err) {
+            console.log(err);
+        }
+        if (data) {
+            inc_asig.equipo = _idEquipo;
+            inc_asig.incidente = _idIncidente;
+            inc_asig.save((err, data) => {
+                if (data) {
+                    res.json(data);
+                }
+                else {
+                    res.status(404).send({ message: err });
+                }
+            });
         }
     });
 });

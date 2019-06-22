@@ -8,6 +8,7 @@ const multipartMiddleware = multipart( {uploadDir: './assets/img'});
 const fs = require('fs');
 const path = require('path');
 import incidente from '../schemas/incidentes';
+import incidentes_asignados from '../schemas/incidentes_asignados'
 import moment = require("moment");
 import Server from '../clases/server';
 import incidentes from '../schemas/incidentes';
@@ -330,6 +331,28 @@ router.get('/equipos', (req:Request, res:Response)=>{
             res.json(err);
         }else{
             res.json(data);
+        }
+    });
+});
+
+router.post('/asignarIncidente', (req:Request, res:Response)=>{
+    const _idEquipo = req.body._idEquipo;
+    const _idIncidente = req.body._idIncidente;
+    const inc_asig = new incidentes_asignados();
+
+    incidente.findByIdAndUpdate(_idEquipo,{estado:"Asignado"}, (err, data)=>{
+        if(err){
+            console.log(err);
+        }if(data){
+            inc_asig.equipo = _idEquipo;
+            inc_asig.incidente = _idIncidente;
+            inc_asig.save((err, data)=>{
+                if(data){
+                    res.json(data);
+                }else{
+                    res.status(404).send({message: err});
+                }
+            });
         }
     });
 });
