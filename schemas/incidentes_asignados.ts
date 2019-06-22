@@ -14,4 +14,4 @@ const Incidentes_Asignados_Schema : Schema = new Schema({
    
 });
 
-export default mongoose.model<Incidentes_Asignados>('Incidente', Incidentes_Asignados_Schema);
+export default mongoose.model<Incidentes_Asignados>('Incidentes_Asignados', Incidentes_Asignados_Schema);

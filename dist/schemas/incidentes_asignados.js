@@ -12,4 +12,4 @@ const Incidentes_Asignados_Schema = new mongoose_1.Schema({
     equipo: { required: true, type: mongoose_1.Schema.Types.ObjectId, ref: "Equipo" },
     incidente: { required: true, type: mongoose_1.Schema.Types.ObjectId, ref: "Incidente" }
 });
-exports.default = mongoose_1.default.model('Incidente', Incidentes_Asignados_Schema);
+exports.default = mongoose_1.default.model('Incidentes_Asignados', Incidentes_Asignados_Schema);
