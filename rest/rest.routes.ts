@@ -1,19 +1,38 @@
 import {Request, Response, Router} from 'express';
 import  usuario from '../schemas/usuario';
 import bcrypt = require("bcrypt");
+import moment = require("moment");
 import * as metodos from '../metodos/metodos';
 import * as ensureAuth from '../middleware/authenticated';
+
+//PROBANDO EL SERVICIO DE SUBIDA MULTIPLE DE ARCHIVOS
+const multer = require('multer');
+
+const store = multer.diskStorage({
+    destination:function(req: any,file:any, cb:any){
+        cb(null, './assets/img');
+    },
+    filename:function(req:any, file:any,cb:any ){
+        cb(null, moment().date() +'-'+ moment().month()+ '-' + moment().year() +'.'+file.originalname);
+    }
+});
+
+const upload = multer({storage:store}).single('file');
+
+
+
 const multipart = require('connect-multiparty');
 const multipartMiddleware = multipart( {uploadDir: './assets/img'});
 const fs = require('fs');
 const path = require('path');
 import incidente from '../schemas/incidentes';
 import incidentes_asignados from '../schemas/incidentes_asignados'
-import moment = require("moment");
+
 import Server from '../clases/server';
 import incidentes from '../schemas/incidentes';
 import equipos from '../schemas/equipos'
 import { LineChart } from '../clases/lineChart';
+
 
 
 
@@ -115,6 +134,23 @@ router.post('/loguearUsuario', (req:Request, res:Response)=>{
    
     });
 
+    router.post('/adjuntarArchivoMultiple',(req:any, res:Response)=>{
+      upload(req, res, (err:any)=>{
+          if(err){
+            return res.status(404).send({messagge: err});
+          }else{
+              console.log('nombreOriginal:', req.file.originalname, 'nombreSubido:', req.file.filename)
+              res.json({nombreOriginal:req.file.originalname, nombreSubido:req.file.filename});
+          }
+
+      })
+    });
+
+
+    
+
+
+
     router.post('/adjuntarArchivo',[multipartMiddleware],(req:any, res:Response)=>{
         if(req.files){
             let file_path = req.files.image.path;
@@ -170,6 +206,7 @@ router.post('/loguearUsuario', (req:Request, res:Response)=>{
 
 
 router.get('/obtenerImagen/:imageFile',(req:Request, res:Response)=>{
+    console.log("entro a obtener imagen");
     let imageFile = req.params.imageFile;
     let aux = './assets/img/'+imageFile;
     fs.exists(aux, function(exists:any){
@@ -180,6 +217,14 @@ router.get('/obtenerImagen/:imageFile',(req:Request, res:Response)=>{
         }
     });
 });
+
+
+router.post('/download', (req:any, res:any)=>{
+    
+    res.sendFile(path.resolve('./assets/img/'+req.body.filename));
+    
+});
+
 
 
 /*
@@ -199,7 +244,7 @@ router.post('/altaIncidente',(req:Request, res:Response)=>{
     let fechaActual:any = {
         dia : moment().date(),
         mes: moment().month(),
-        año: moment().year()
+        anio: moment().year()
     }
     
     
@@ -215,7 +260,7 @@ router.post('/altaIncidente',(req:Request, res:Response)=>{
     inc.fechaAparicion  = {
         dia:  params.fecha_primer_reclamo.day,
         mes : params.fecha_primer_reclamo.month,
-        año : params.fecha_primer_reclamo.year
+        anio : params.fecha_primer_reclamo.year
     }
     inc.numeroSpring = params.numeroSpring;
     inc.trxAsociada = params.trxAsociada
@@ -313,17 +358,8 @@ router.get('/lineChart', (req:Request, res:Response)=>{
 });
 
 
-router.post('/lineChart', (req:Request, res:Response)=>{
-    const mes = req.body.mes;
-    const unidades = Number(req.body.unidades);
-    const server = Server.getInstancia();
 
-    lineChart.cambiarValor(mes,unidades);
-    
-    server.io.emit('line-chart', lineChart.getData() );
-    res.json(lineChart.getData());
-    
-});
+
 
 router.get('/equipos', (req:Request, res:Response)=>{
     equipos.find((err, data)=>{
@@ -335,12 +371,31 @@ router.get('/equipos', (req:Request, res:Response)=>{
     });
 });
 
+
+
+//logica de Socket!!
+router.post('/lineChart', (req:Request, res:Response)=>{
+    const mes = req.body.mes;
+    const unidades = Number(req.body.unidades);
+    const server = Server.getInstancia();
+
+    lineChart.cambiarValor(mes,unidades);
+    
+    server.io.emit('line-chart', lineChart.getData());
+    res.json(lineChart.getData());
+    
+});
+
+
+
 router.post('/asignarIncidente', (req:Request, res:Response)=>{
     const _idEquipo = req.body._idEquipo;
     const _idIncidente = req.body._idIncidente;
+    const server = Server.getInstancia();
     const inc_asig = new incidentes_asignados();
 
-    incidente.findByIdAndUpdate(_idEquipo,{estado:"Asignado"}, (err, data)=>{
+    //cambio el estado del incidente a Asignado antes de persistirlo.
+    incidente.findByIdAndUpdate(_idIncidente,{estado:"Asignado"}, (err, data)=>{
         if(err){
             console.log(err);
         }if(data){
@@ -349,6 +404,7 @@ router.post('/asignarIncidente', (req:Request, res:Response)=>{
             inc_asig.save((err, data)=>{
                 if(data){
                     res.json(data);
+                    server.io.emit('incidentes-nuevos', data);
                 }else{
                     res.status(404).send({message: err});
                 }

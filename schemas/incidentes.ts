@@ -8,14 +8,14 @@ export interface Incidente extends Document{
     fechaAlta:{
         dia:number,
         mes:number,
-        año:number
+        anio:number
     }
     fechaAparicion:{
         dia:number,
         mes:number,
-        año:number
+        anio:number
     }
-    adjunto:string,
+    adjunto:string[],
     numeroSpring:string,
     trxAsociada: string,
     estado:string,
@@ -28,7 +28,7 @@ const IncidenteSchema : Schema = new Schema({
     descripcion:{required: true, type: String},
     fechaAlta: {required: false, type: Object},
     fechaAparicion:{required: false, type: Object},
-    adjunto: {required: false, type: String},
+    adjunto: {required: false, type: Array},
     numeroSpring: {required: false, type: String},
     trxAsociada:{required: false, type: String},
     estado: {required:true, type:String},
