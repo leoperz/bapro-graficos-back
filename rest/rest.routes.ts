@@ -1,9 +1,13 @@
 import {Request, Response, Router} from 'express';
 import  usuario from '../schemas/usuario';
+import incidente from '../schemas/incidentes';
+import equipo from '../schemas/equipos';
+import rechazados from '../schemas/incidentes_rechazados';
 import bcrypt = require("bcrypt");
 import moment = require("moment");
 import * as metodos from '../metodos/metodos';
 import * as ensureAuth from '../middleware/authenticated';
+import {usuariosConectados} from '../metodos/metodos';
 
 //PROBANDO EL SERVICIO DE SUBIDA MULTIPLE DE ARCHIVOS
 const multer = require('multer');
@@ -25,7 +29,7 @@ const multipart = require('connect-multiparty');
 const multipartMiddleware = multipart( {uploadDir: './assets/img'});
 const fs = require('fs');
 const path = require('path');
-import incidente from '../schemas/incidentes';
+
 import incidentes_asignados from '../schemas/incidentes_asignados'
 
 import Server from '../clases/server';
@@ -218,12 +222,17 @@ router.get('/obtenerImagen/:imageFile',(req:Request, res:Response)=>{
     });
 });
 
-
-router.post('/download', (req:any, res:any)=>{
-    
-    res.sendFile(path.resolve('./assets/img/'+req.body.filename));
-    
+router.get('/descargarDocumento/:file', (req:Request, res:Response)=>{
+    let arch = req.params.file;
+    const file = './assets/img/'+arch ;
+    res.download(file);
 });
+
+router.post('/download', (req:Request, res:Response)=>{
+	res.sendFile(path.resolve('./assets/img/'+req.body.filename));
+
+});
+    
 
 
 
@@ -272,7 +281,7 @@ router.post('/altaIncidente',(req:Request, res:Response)=>{
         if(data){
             
             inc.usuario = data._id;
-            inc.save((err, data)=>{
+            inc.save((err, saved)=>{
                 if(err){
                     res.status(404).send({messagge:'Error al guardar el incidente', data: err});
                 }else{
@@ -287,10 +296,7 @@ router.post('/altaIncidente',(req:Request, res:Response)=>{
                       console.log(data);
                       numero = data;
                       
-                      res.json({
-                        messagge: data,
-                        cantidadTotal: numero
-                    });
+                      res.json(saved);
                    console.log(numero);
                    server.io.emit('cantidad-incidentes',numero);
                   }
@@ -350,6 +356,10 @@ router.get('/incidentesNuevos', (req:Request, res:Response)=>{
     }).populate('usuario');
 });
 
+router.post('/incidentesAsignados', (req:Request, res:Response)=>{
+    
+})
+
 
 
 
@@ -371,11 +381,46 @@ router.get('/equipos', (req:Request, res:Response)=>{
     });
 });
 
+router.get('/generarGraficosMensuales', (req:Request, res:Response)=>{
+    const server = Server.getInstancia();
+    incidente.aggregate([
+        
+      {
+            $match:{estado:"nuevo"}
+        },
+        
+        {
+            $group:{
+                _id:'$fechaAlta.mes',
+                
+                cantidad:{$sum:1}
+            }
+        }, 
+       
+    ], (error:any, data:[])=>{
+        if(data){
+            res.json(data);
+            lineChart.generarGraficoIncidentesMensuales(data);
+            server.io.emit('line-chart', lineChart.getData());
+            
+        }
+        if(error){
+            res.json(error);
+        }
+    }
+    
+    );
+    
+});
+
 
 
 //logica de Socket!!
 router.post('/lineChart', (req:Request, res:Response)=>{
     const mes = req.body.mes;
+    
+    
+    
     const unidades = Number(req.body.unidades);
     const server = Server.getInstancia();
 
@@ -409,6 +454,117 @@ router.post('/asignarIncidente', (req:Request, res:Response)=>{
                     res.status(404).send({message: err});
                 }
             });
+        }
+    });
+});
+
+
+router.post('/mensajeprivado/:id', (req:Request, res:Response)=>{
+    const cuerpo = req.body.cuerpo;
+    const de  = req.body.de;
+    const id = req.params.id;
+    const server = Server.getInstancia();
+    const payload = {de, cuerpo};
+    server.io.in(id).emit('mensaje-privado', payload);
+    res.json({
+        de,
+        cuerpo
+    });
+});
+
+
+router.get('/usuariosActivos', (req:Request, res:Response)=>{
+    const server = Server.getInstancia();
+    
+    
+    server.io.clients((err:any, clientes:any)=>{
+        if(err){
+            res.json({err});
+        }else{
+            server.io.emit('usuarios-activos', usuariosConectados.getUsuarios());
+            res.json({
+                
+                clientes:usuariosConectados.getUsuarios()});
+        }
+
+    });
+});
+
+
+//Deep Population
+router.get('/incidentesAsignados/:ids', (req:Request, res:Response)=>{
+
+    let _id = req.params.ids;
+    
+        incidentes_asignados.find({equipo: {$in:_id}}, (err, data)=>{
+            if(err){
+                res.status(404).send({message:'Error al ejecutar la consulta'});
+            }else{
+                res.json(data);
+            }
+        }).populate('equipo').populate({
+            path:'incidente',
+            model:'Incidente',
+            populate:{
+                path:'usuario',
+                model:'Usuario'
+            }
+        })
+        });
+    
+    
+   
+
+
+router.post('/getEquiposPorId/', (req:Request, res:Response)=>{
+    
+   
+    
+    equipo.find().where('_id').in(req.body).exec((err, data)=>{
+        if(err){
+            res.status(404).send({err});
+            console.log(err);
+        }else{
+            res.json(data);
+            
+        }
+    });
+});
+
+router.post('/cambiarEstadoIncidente/', (req:Request, res:Response)=>{
+   
+    let id = req.body.id;
+    let estado = req.body.estado;
+
+    console.log(id, estado);
+    incidente.findByIdAndUpdate(id,{estado: estado}, 
+        
+        (err, res)=>{
+            if(err){
+                console.log(err);
+            }else{
+                console.log(res);
+            }
+        }
+        
+        );
+
+    
+});
+
+
+router.post('/guardarRechazados', (req:Request, res:Response)=>{
+    let recha = new rechazados();
+   
+    recha.equipo = req.body.equipo;
+    recha.incidente = req.body.incidente;
+    recha.motivo = req.body.motivo;
+
+    recha.save((err, data)=>{
+        if(err){
+            res.status(404).send({err});
+        }else{
+            res.json(data);
         }
     });
 });

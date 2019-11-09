@@ -40,8 +40,12 @@ export default class Server{
 
     private clientesConectados(){
        this.io.on('connection', cliente=>{
-        console.log("nuevo client conectado: ", cliente.id);
-        metodos.desconectar(cliente);
+        console.log("nuevo client conectado: ", cliente.id, cliente.rooms);
+        metodos.conectarCliente(cliente);
+        metodos.desconectar(cliente, this.io);
+        metodos.configurarUsuario(cliente, this.io);
+        metodos.getMensaje(cliente, this.io);
+        metodos.mensajesDeSala(cliente, this.io);
        });
     }
 

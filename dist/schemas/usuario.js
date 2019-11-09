@@ -14,7 +14,7 @@ const UsuarioSchema = new mongoose_1.Schema({
     numeroLegajo: { type: String, required: true },
     correo: { type: String, required: false, unique: true },
     tecnologias: { type: Array, required: true },
-    equipo: { type: String, required: true },
+    equipo: [{ type: mongoose_1.Schema.Types.ObjectId, ref: "Equipo", required: true }],
     password: { type: String, required: true },
     imagen: { type: String }
 });

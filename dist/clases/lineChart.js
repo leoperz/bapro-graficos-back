@@ -4,7 +4,7 @@ class LineChart {
     constructor() {
         this.meses = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio',
             'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
-        this.valores = [1, 2, 3, 4, 5];
+        this.valores = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
     }
     getData() {
         return [
@@ -19,6 +19,11 @@ class LineChart {
             }
         }
         return this.getData();
+    }
+    generarGraficoIncidentesMensuales(array) {
+        for (let item of array) {
+            this.valores[item._id - 1] = item.cantidad;
+        }
     }
 }
 exports.LineChart = LineChart;

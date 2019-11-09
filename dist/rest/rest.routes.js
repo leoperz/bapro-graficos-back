@@ -12,19 +12,33 @@ var __importStar = (this && this.__importStar) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = require("express");
 const usuario_1 = __importDefault(require("../schemas/usuario"));
+const incidentes_1 = __importDefault(require("../schemas/incidentes"));
+const equipos_1 = __importDefault(require("../schemas/equipos"));
+const incidentes_rechazados_1 = __importDefault(require("../schemas/incidentes_rechazados"));
 const bcrypt = require("bcrypt");
+const moment = require("moment");
 const metodos = __importStar(require("../metodos/metodos"));
 const ensureAuth = __importStar(require("../middleware/authenticated"));
+const metodos_1 = require("../metodos/metodos");
+//PROBANDO EL SERVICIO DE SUBIDA MULTIPLE DE ARCHIVOS
+const multer = require('multer');
+const store = multer.diskStorage({
+    destination: function (req, file, cb) {
+        cb(null, './assets/img');
+    },
+    filename: function (req, file, cb) {
+        cb(null, moment().date() + '-' + moment().month() + '-' + moment().year() + '.' + file.originalname);
+    }
+});
+const upload = multer({ storage: store }).single('file');
 const multipart = require('connect-multiparty');
 const multipartMiddleware = multipart({ uploadDir: './assets/img' });
 const fs = require('fs');
 const path = require('path');
-const incidentes_1 = __importDefault(require("../schemas/incidentes"));
 const incidentes_asignados_1 = __importDefault(require("../schemas/incidentes_asignados"));
-const moment = require("moment");
 const server_1 = __importDefault(require("../clases/server"));
 const incidentes_2 = __importDefault(require("../schemas/incidentes"));
-const equipos_1 = __importDefault(require("../schemas/equipos"));
+const equipos_2 = __importDefault(require("../schemas/equipos"));
 const lineChart_1 = require("../clases/lineChart");
 exports.router = express_1.Router();
 const lineChart = new lineChart_1.LineChart();
@@ -106,6 +120,17 @@ exports.router.post('/loguearUsuario', (req, res) => {
         }
     });
 });
+exports.router.post('/adjuntarArchivoMultiple', (req, res) => {
+    upload(req, res, (err) => {
+        if (err) {
+            return res.status(404).send({ messagge: err });
+        }
+        else {
+            console.log('nombreOriginal:', req.file.originalname, 'nombreSubido:', req.file.filename);
+            res.json({ nombreOriginal: req.file.originalname, nombreSubido: req.file.filename });
+        }
+    });
+});
 exports.router.post('/adjuntarArchivo', [multipartMiddleware], (req, res) => {
     if (req.files) {
         let file_path = req.files.image.path;
@@ -150,6 +175,7 @@ exports.router.post('/subirImagen/:id', [ensureAuth.ensureAuth, multipartMiddlew
     }
 });
 exports.router.get('/obtenerImagen/:imageFile', (req, res) => {
+    console.log("entro a obtener imagen");
     let imageFile = req.params.imageFile;
     let aux = './assets/img/' + imageFile;
     fs.exists(aux, function (exists) {
@@ -161,6 +187,14 @@ exports.router.get('/obtenerImagen/:imageFile', (req, res) => {
         }
     });
 });
+exports.router.get('/descargarDocumento/:file', (req, res) => {
+    let arch = req.params.file;
+    const file = './assets/img/' + arch;
+    res.download(file);
+});
+exports.router.post('/download', (req, res) => {
+    res.sendFile(path.resolve('./assets/img/' + req.body.filename));
+});
 /*
     Metodos REST para la gestion de incidentes
 */
@@ -171,7 +205,7 @@ exports.router.post('/altaIncidente', (req, res) => {
     let fechaActual = {
         dia: moment().date(),
         mes: moment().month(),
-        año: moment().year()
+        anio: moment().year()
     };
     const inc = new incidentes_1.default();
     let params = req.body;
@@ -184,7 +218,7 @@ exports.router.post('/altaIncidente', (req, res) => {
     inc.fechaAparicion = {
         dia: params.fecha_primer_reclamo.day,
         mes: params.fecha_primer_reclamo.month,
-        año: params.fecha_primer_reclamo.year
+        anio: params.fecha_primer_reclamo.year
     };
     inc.numeroSpring = params.numeroSpring;
     inc.trxAsociada = params.trxAsociada;
@@ -194,7 +228,7 @@ exports.router.post('/altaIncidente', (req, res) => {
         }
         if (data) {
             inc.usuario = data._id;
-            inc.save((err, data) => {
+            inc.save((err, saved) => {
                 if (err) {
                     res.status(404).send({ messagge: 'Error al guardar el incidente', data: err });
                 }
@@ -207,10 +241,7 @@ exports.router.post('/altaIncidente', (req, res) => {
                         else {
                             console.log(data);
                             numero = data;
-                            res.json({
-                                messagge: data,
-                                cantidadTotal: numero
-                            });
+                            res.json(saved);
                             console.log(numero);
                             server.io.emit('cantidad-incidentes', numero);
                         }
@@ -252,19 +283,13 @@ exports.router.get('/incidentesNuevos', (req, res) => {
         }
     }).populate('usuario');
 });
+exports.router.post('/incidentesAsignados', (req, res) => {
+});
 exports.router.get('/lineChart', (req, res) => {
     res.json(lineChart.getData());
 });
-exports.router.post('/lineChart', (req, res) => {
-    const mes = req.body.mes;
-    const unidades = Number(req.body.unidades);
-    const server = server_1.default.getInstancia();
-    lineChart.cambiarValor(mes, unidades);
-    server.io.emit('line-chart', lineChart.getData());
-    res.json(lineChart.getData());
-});
 exports.router.get('/equipos', (req, res) => {
-    equipos_1.default.find((err, data) => {
+    equipos_2.default.find((err, data) => {
         if (err) {
             res.json(err);
         }
@@ -273,11 +298,45 @@ exports.router.get('/equipos', (req, res) => {
         }
     });
 });
+exports.router.get('/generarGraficosMensuales', (req, res) => {
+    const server = server_1.default.getInstancia();
+    incidentes_1.default.aggregate([
+        {
+            $match: { estado: "nuevo" }
+        },
+        {
+            $group: {
+                _id: '$fechaAlta.mes',
+                cantidad: { $sum: 1 }
+            }
+        },
+    ], (error, data) => {
+        if (data) {
+            res.json(data);
+            lineChart.generarGraficoIncidentesMensuales(data);
+            server.io.emit('line-chart', lineChart.getData());
+        }
+        if (error) {
+            res.json(error);
+        }
+    });
+});
+//logica de Socket!!
+exports.router.post('/lineChart', (req, res) => {
+    const mes = req.body.mes;
+    const unidades = Number(req.body.unidades);
+    const server = server_1.default.getInstancia();
+    lineChart.cambiarValor(mes, unidades);
+    server.io.emit('line-chart', lineChart.getData());
+    res.json(lineChart.getData());
+});
 exports.router.post('/asignarIncidente', (req, res) => {
     const _idEquipo = req.body._idEquipo;
     const _idIncidente = req.body._idIncidente;
+    const server = server_1.default.getInstancia();
     const inc_asig = new incidentes_asignados_1.default();
-    incidentes_1.default.findByIdAndUpdate(_idEquipo, { estado: "Asignado" }, (err, data) => {
+    //cambio el estado del incidente a Asignado antes de persistirlo.
+    incidentes_1.default.findByIdAndUpdate(_idIncidente, { estado: "Asignado" }, (err, data) => {
         if (err) {
             console.log(err);
         }
@@ -287,11 +346,95 @@ exports.router.post('/asignarIncidente', (req, res) => {
             inc_asig.save((err, data) => {
                 if (data) {
                     res.json(data);
+                    server.io.emit('incidentes-nuevos', data);
                 }
                 else {
                     res.status(404).send({ message: err });
                 }
             });
+        }
+    });
+});
+exports.router.post('/mensajeprivado/:id', (req, res) => {
+    const cuerpo = req.body.cuerpo;
+    const de = req.body.de;
+    const id = req.params.id;
+    const server = server_1.default.getInstancia();
+    const payload = { de, cuerpo };
+    server.io.in(id).emit('mensaje-privado', payload);
+    res.json({
+        de,
+        cuerpo
+    });
+});
+exports.router.get('/usuariosActivos', (req, res) => {
+    const server = server_1.default.getInstancia();
+    server.io.clients((err, clientes) => {
+        if (err) {
+            res.json({ err });
+        }
+        else {
+            server.io.emit('usuarios-activos', metodos_1.usuariosConectados.getUsuarios());
+            res.json({
+                clientes: metodos_1.usuariosConectados.getUsuarios()
+            });
+        }
+    });
+});
+//Deep Population
+exports.router.get('/incidentesAsignados/:ids', (req, res) => {
+    let _id = req.params.ids;
+    incidentes_asignados_1.default.find({ equipo: { $in: _id } }, (err, data) => {
+        if (err) {
+            res.status(404).send({ message: 'Error al ejecutar la consulta' });
+        }
+        else {
+            res.json(data);
+        }
+    }).populate('equipo').populate({
+        path: 'incidente',
+        model: 'Incidente',
+        populate: {
+            path: 'usuario',
+            model: 'Usuario'
+        }
+    });
+});
+exports.router.post('/getEquiposPorId/', (req, res) => {
+    equipos_1.default.find().where('_id').in(req.body).exec((err, data) => {
+        if (err) {
+            res.status(404).send({ err });
+            console.log(err);
+        }
+        else {
+            res.json(data);
+        }
+    });
+});
+exports.router.post('/cambiarEstadoIncidente/', (req, res) => {
+    let id = req.body.id;
+    let estado = req.body.estado;
+    console.log(id, estado);
+    incidentes_1.default.findByIdAndUpdate(id, { estado: estado }, (err, res) => {
+        if (err) {
+            console.log(err);
+        }
+        else {
+            console.log(res);
+        }
+    });
+});
+exports.router.post('/guardarRechazados', (req, res) => {
+    let recha = new incidentes_rechazados_1.default();
+    recha.equipo = req.body.equipo;
+    recha.incidente = req.body.incidente;
+    recha.motivo = req.body.motivo;
+    recha.save((err, data) => {
+        if (err) {
+            res.status(404).send({ err });
+        }
+        else {
+            res.json(data);
         }
     });
 });

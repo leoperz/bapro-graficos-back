@@ -3,11 +3,11 @@ export class LineChart{
     private meses: string[] = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio',
                                  'agosto','septiembre','octubre','noviembre','diciembre'];
     
-    private valores: number[] = [1,2,3,4,5];
+    private valores: number[] = [0,0,0,0,0,0,0,0,0,0,0,0];
 
 
     constructor(){
-
+        
     }
 
     getData(){
@@ -24,5 +24,13 @@ export class LineChart{
             }
         }
         return this.getData();
+    }
+
+    generarGraficoIncidentesMensuales(array:any[]){
+        
+        for(let item of array){
+            this.valores[item._id-1]=item.cantidad;
+        }
+        
     }
 }
