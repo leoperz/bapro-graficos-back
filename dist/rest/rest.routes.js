@@ -346,7 +346,7 @@ exports.router.post('/asignarIncidente', (req, res) => {
             inc_asig.save((err, data) => {
                 if (data) {
                     res.json(data);
-                    server.io.emit('incidentes-nuevos', data);
+                    server.io.emit('incidente-asignados', data);
                 }
                 else {
                     res.status(404).send({ message: err });
