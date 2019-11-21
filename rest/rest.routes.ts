@@ -514,6 +514,17 @@ router.get('/incidentesAsignados/:ids', (req:Request, res:Response)=>{
             }
         })
         });
+
+
+router.get('/incidentesRechazados', (req:Request, res:Response)=>{
+    rechazados.find({}, (err, data)=>{
+        if(err){
+            res.json(err);
+        }else{
+            res.json(data);
+        }
+    }).populate('equipo').populate('incidente');
+});
     
     
    
@@ -556,34 +567,7 @@ router.post('/cambiarEstadoIncidente/', (req:Request, res:Response)=>{
 });
 
 
-router.post('/guardarRechazados', (req:Request, res:Response)=>{
-    let recha = new rechazados();
-   
-    recha.equipo = req.body.equipo;
-    recha.incidente = req.body.incidente;
-    recha.motivo = req.body.motivo;
 
-    recha.save((err, data)=>{
-        if(err){
-            res.status(404).send({err});
-        }else{
-            res.json(data);
-        }
-    });
-});
-
-
-router.get('/incidentesRechazados', (req:Request, res:Response)=>{
-    rechazados.find((err,data)=>{
-        if(err){
-            res.json(err);
-        }else{
-            res.json(data);
-        }
-    }
-        
-    );
-});
 
 router.post('/removerIncidenteAsignado', (req:Request, res:Response)=>{
     let flag = false;
@@ -603,6 +587,40 @@ router.post('/removerIncidenteAsignado', (req:Request, res:Response)=>{
         });
     }
 });
+
+
+ 
+ router.post('/guardarRechazados', (req:Request, res:Response)=>{
+    let recha = new rechazados();
+   
+    recha.equipo = req.body.equipo;
+    recha.incidente = req.body.incidente;
+    recha.motivo = req.body.motivo;
+
+    recha.save((err, data)=>{
+        if(err){
+            res.status(404).send({err});
+        }else{
+            res.json(data);
+        }
+    });
+});
+
+router.delete('/borrarIncidenteRechazado/:id', (req:Request, res:Response)=>{
+    let _id = req.params.id;
+    console.log("item-->",_id);
+    rechazados.deleteOne({_id:_id}, (err)=>{
+        if(err){
+            res.json(err);
+        }else{
+            res.json('ok');
+        }
+    });
+});
+
+
+
+
 
  
 

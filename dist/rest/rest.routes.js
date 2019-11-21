@@ -403,6 +403,16 @@ exports.router.get('/incidentesAsignados/:ids', (req, res) => {
         }
     });
 });
+exports.router.get('/incidentesRechazados', (req, res) => {
+    incidentes_rechazados_1.default.find({}, (err, data) => {
+        if (err) {
+            res.json(err);
+        }
+        else {
+            res.json(data);
+        }
+    }).populate('equipo').populate('incidente');
+});
 exports.router.post('/getEquiposPorId/', (req, res) => {
     equipos_1.default.find().where('_id').in(req.body).exec((err, data) => {
         if (err) {
@@ -427,30 +437,6 @@ exports.router.post('/cambiarEstadoIncidente/', (req, res) => {
         }
     });
 });
-exports.router.post('/guardarRechazados', (req, res) => {
-    let recha = new incidentes_rechazados_1.default();
-    recha.equipo = req.body.equipo;
-    recha.incidente = req.body.incidente;
-    recha.motivo = req.body.motivo;
-    recha.save((err, data) => {
-        if (err) {
-            res.status(404).send({ err });
-        }
-        else {
-            res.json(data);
-        }
-    });
-});
-exports.router.get('/incidentesRechazados', (req, res) => {
-    incidentes_rechazados_1.default.find((err, data) => {
-        if (err) {
-            res.json(err);
-        }
-        else {
-            res.json(data);
-        }
-    });
-});
 exports.router.post('/removerIncidenteAsignado', (req, res) => {
     let flag = false;
     console.log('id que llega a removerIncidenteAsignado', req.body.id);
@@ -468,4 +454,30 @@ exports.router.post('/removerIncidenteAsignado', (req, res) => {
             res.json(data);
         });
     }
+});
+exports.router.post('/guardarRechazados', (req, res) => {
+    let recha = new incidentes_rechazados_1.default();
+    recha.equipo = req.body.equipo;
+    recha.incidente = req.body.incidente;
+    recha.motivo = req.body.motivo;
+    recha.save((err, data) => {
+        if (err) {
+            res.status(404).send({ err });
+        }
+        else {
+            res.json(data);
+        }
+    });
+});
+exports.router.delete('/borrarIncidenteRechazado/:id', (req, res) => {
+    let _id = req.params.id;
+    console.log("item-->", _id);
+    incidentes_rechazados_1.default.deleteOne({ _id: _id }, (err) => {
+        if (err) {
+            res.json(err);
+        }
+        else {
+            res.json('ok');
+        }
+    });
 });
