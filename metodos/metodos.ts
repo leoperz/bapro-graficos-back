@@ -52,7 +52,7 @@ export const configurarUsuario = (cliente: Socket, io: SocketIO.Server)=>{
 
 export const mensajesDeSala = (cliente: Socket, io:SocketIO.Server)=>{
     cliente.on('mensaje-sala', data=>{
-        console.log('mensaje-sala --> ', data);
+        console.log('mensaje-sala', data);
         io.to(data.sala).emit('mensaje-sala-srv', data);
     });
 }
