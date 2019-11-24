@@ -10,6 +10,9 @@ import * as metodos from '../metodos/metodos';
 import * as ensureAuth from '../middleware/authenticated';
 import {usuariosConectados} from '../metodos/metodos';
 
+
+
+
 //PROBANDO EL SERVICIO DE SUBIDA MULTIPLE DE ARCHIVOS
 const multer = require('multer');
 
@@ -37,6 +40,7 @@ import Server from '../clases/server';
 import incidentes from '../schemas/incidentes';
 import equipos from '../schemas/equipos'
 import { LineChart } from '../clases/lineChart';
+
 
 
 
@@ -571,7 +575,7 @@ router.post('/cambiarEstadoIncidente/', (req:Request, res:Response)=>{
 
 router.post('/removerIncidenteAsignado', (req:Request, res:Response)=>{
     let flag = false;
-    console.log('id que llega a removerIncidenteAsignado',req.body.id);
+  
     asignados.remove({_id: req.body.id}, (error)=>{
         if(error){
             res.json(error);
@@ -616,6 +620,27 @@ router.delete('/borrarIncidenteRechazado/:id', (req:Request, res:Response)=>{
             res.json('ok');
         }
     });
+});
+
+
+
+router.get('/pruebajson', (req:Request,res:Response)=>{
+    
+ 
+   fs.readFile('./assets/trello.json','utf8', (err:any ,data:any)=>{
+        if(err){
+            res.json(err);
+        }else{
+            
+            let test = JSON.stringify(data);
+            res.json('ok');
+            console.log(test);
+        }
+   })
+   
+
+   
+  
 });
 
 
