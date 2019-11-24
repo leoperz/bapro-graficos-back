@@ -2,6 +2,7 @@ import {Request, Response, Router} from 'express';
 import  usuario from '../schemas/usuario';
 import incidente from '../schemas/incidentes';
 import equipo from '../schemas/equipos';
+import notificacion from '../schemas/notificaciones';
 import rechazados from '../schemas/incidentes_rechazados';
 import bcrypt = require("bcrypt");
 import moment = require("moment");
@@ -490,10 +491,10 @@ router.get('/usuariosActivos', (req:Request, res:Response)=>{
     });
 });
 
-
-//Deep Population
+//Operador in.
+//Deep Population.
 router.get('/incidentesAsignados/:ids', (req:Request, res:Response)=>{
-
+    console.log("entra en incidentesAsignados");
     let _id = req.params.ids;
     
         incidentes_asignados.find({equipo: {$in:_id}}, (err, data)=>{
@@ -569,7 +570,83 @@ router.post('/guardarRechazados', (req:Request, res:Response)=>{
     });
 });
 
- 
+router.post('/integrantesDeMiEquipo',(request:Request, response:Response)=>{
+    let condicion = request.body.equipo;
+    usuario.find({equipo:{$in:condicion}}, (err, data)=>{
+        if(err){
+            response.status(404).json(err);
+        }else{
+            response.json(data);
+        }
+    });
+});
 
+router.post('/guardar_notificacion', (request:Request, response:Response)=>{
+    console.log("entra en guardar notificacion");
+    console.log(request.body);
+    let mensaje = request.body.mensaje;
+    let fecha = request.body.fecha;
+    let sala = request.body.sala;
+    let usuario = request.body.usuario;
+    
+    let n = new notificacion();
+    
+    n.mensaje = mensaje;
+    n.fecha = fecha;
+    n.usuario = usuario;
+    equipo.findById(sala, (err, data)=>{
+        if(data){
+            n.equipo = data.nombre;
+            n.leido = false;
+            n.save((err, data)=>{
+                if(err){
+                    response.status(404).json({messagge:"Hubo un error en el servidor"});
+                }else{
+                    response.json(data);
+                }
+            });
+        }
+    });
+    
+    
+   });
+
+ 
+router.get('/allNotifications', (req:Request, res:Response)=>{
+    notificacion.find(
+        (err:any)=>{
+            res.status(404).send({err});
+        },
+        (data:[])=>{
+            res.json(data);
+        }
+    );
+});
+
+router.post('/modificarNotificacion', (req:Request, res:Response)=>{
+    
+    let fecha= req.body.fecha;
+    let mensaje = req.body.mensaje;
+    notificacion.findOneAndUpdate({mensaje:mensaje, fecha:fecha}, {leido:true}, (err, data)=>{
+        if(err){
+            console.log(err);
+            res.status(404).send(err);
+        }else{
+            console.log(data);
+            res.json(data);
+        }
+    });
+});
+
+router.post('/conditionNotifications', (req:Request, res:Response)=>{
+    
+    notificacion.find({ usuario : req.body._id, leido:false} ,(err, data)=>{
+        if(err){
+            res.status(500).send({messagge:err});
+        }else{
+            res.json(data);
+        }
+    });
+});
 
 
