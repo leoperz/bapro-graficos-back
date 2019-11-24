@@ -15,6 +15,7 @@ const usuario_1 = __importDefault(require("../schemas/usuario"));
 const incidentes_1 = __importDefault(require("../schemas/incidentes"));
 const equipos_1 = __importDefault(require("../schemas/equipos"));
 const incidentes_rechazados_1 = __importDefault(require("../schemas/incidentes_rechazados"));
+const incidentes_asignados_1 = __importDefault(require("../schemas/incidentes_asignados"));
 const bcrypt = require("bcrypt");
 const moment = require("moment");
 const metodos = __importStar(require("../metodos/metodos"));
@@ -35,7 +36,7 @@ const multipart = require('connect-multiparty');
 const multipartMiddleware = multipart({ uploadDir: './assets/img' });
 const fs = require('fs');
 const path = require('path');
-const incidentes_asignados_1 = __importDefault(require("../schemas/incidentes_asignados"));
+const incidentes_asignados_2 = __importDefault(require("../schemas/incidentes_asignados"));
 const server_1 = __importDefault(require("../clases/server"));
 const incidentes_2 = __importDefault(require("../schemas/incidentes"));
 const equipos_2 = __importDefault(require("../schemas/equipos"));
@@ -242,7 +243,7 @@ exports.router.post('/altaIncidente', (req, res) => {
                             console.log(data);
                             numero = data;
                             res.json(saved);
-                            console.log(numero);
+                            console.log("cantidad de incidentes totales -->", numero);
                             server.io.emit('cantidad-incidentes', numero);
                         }
                     });
@@ -269,6 +270,7 @@ exports.router.get('/cantidadIncidentesPorEstado', (req, res) => {
             res.json(err);
         }
         else {
+            console.log("cantidad de incidentes por estado-->", result);
             res.json(result);
         }
     });
@@ -314,6 +316,7 @@ exports.router.get('/generarGraficosMensuales', (req, res) => {
         if (data) {
             res.json(data);
             lineChart.generarGraficoIncidentesMensuales(data);
+            console.log('lineChart.getData()-->', lineChart.getData());
             server.io.emit('line-chart', lineChart.getData());
         }
         if (error) {
@@ -334,8 +337,8 @@ exports.router.post('/asignarIncidente', (req, res) => {
     const _idEquipo = req.body._idEquipo;
     const _idIncidente = req.body._idIncidente;
     const server = server_1.default.getInstancia();
-    const inc_asig = new incidentes_asignados_1.default();
-    //cambio el estado del incidente a Asignado antes de persistirlo.
+    const inc_asig = new incidentes_asignados_2.default();
+    //cambio el estado del incidente Asignado antes de persistirlo.
     incidentes_1.default.findByIdAndUpdate(_idIncidente, { estado: "Asignado" }, (err, data) => {
         if (err) {
             console.log(err);
@@ -384,7 +387,7 @@ exports.router.get('/usuariosActivos', (req, res) => {
 //Deep Population
 exports.router.get('/incidentesAsignados/:ids', (req, res) => {
     let _id = req.params.ids;
-    incidentes_asignados_1.default.find({ equipo: { $in: _id } }, (err, data) => {
+    incidentes_asignados_2.default.find({ equipo: { $in: _id } }, (err, data) => {
         if (err) {
             res.status(404).send({ message: 'Error al ejecutar la consulta' });
         }
@@ -399,6 +402,16 @@ exports.router.get('/incidentesAsignados/:ids', (req, res) => {
             model: 'Usuario'
         }
     });
+});
+exports.router.get('/incidentesRechazados', (req, res) => {
+    incidentes_rechazados_1.default.find({}, (err, data) => {
+        if (err) {
+            res.json(err);
+        }
+        else {
+            res.json(data);
+        }
+    }).populate('equipo').populate('incidente');
 });
 exports.router.post('/getEquiposPorId/', (req, res) => {
     equipos_1.default.find().where('_id').in(req.body).exec((err, data) => {
@@ -424,6 +437,24 @@ exports.router.post('/cambiarEstadoIncidente/', (req, res) => {
         }
     });
 });
+exports.router.post('/removerIncidenteAsignado', (req, res) => {
+    let flag = false;
+    console.log('id que llega a removerIncidenteAsignado', req.body.id);
+    incidentes_asignados_1.default.remove({ _id: req.body.id }, (error) => {
+        if (error) {
+            res.json(error);
+        }
+        else {
+            flag = true;
+        }
+    });
+    if (flag) {
+        incidentes_asignados_1.default.find({}, (err, data) => {
+            console.log(data);
+            res.json(data);
+        });
+    }
+});
 exports.router.post('/guardarRechazados', (req, res) => {
     let recha = new incidentes_rechazados_1.default();
     recha.equipo = req.body.equipo;
@@ -435,6 +466,18 @@ exports.router.post('/guardarRechazados', (req, res) => {
         }
         else {
             res.json(data);
+        }
+    });
+});
+exports.router.delete('/borrarIncidenteRechazado/:id', (req, res) => {
+    let _id = req.params.id;
+    console.log("item-->", _id);
+    incidentes_rechazados_1.default.deleteOne({ _id: _id }, (err) => {
+        if (err) {
+            res.json(err);
+        }
+        else {
+            res.json('ok');
         }
     });
 });

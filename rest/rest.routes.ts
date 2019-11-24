@@ -4,6 +4,7 @@ import incidente from '../schemas/incidentes';
 import equipo from '../schemas/equipos';
 import notificacion from '../schemas/notificaciones';
 import rechazados from '../schemas/incidentes_rechazados';
+import asignados from '../schemas/incidentes_asignados';
 import bcrypt = require("bcrypt");
 import moment = require("moment");
 import * as metodos from '../metodos/metodos';
@@ -298,7 +299,7 @@ router.post('/altaIncidente',(req:Request, res:Response)=>{
                       numero = data;
                       
                       res.json(saved);
-                   console.log(numero);
+                   console.log("cantidad de incidentes totales -->",numero);
                    server.io.emit('cantidad-incidentes',numero);
                   }
         
@@ -339,6 +340,7 @@ router.get('/cantidadIncidentesPorEstado', (req:Request, res:Response)=>{
             if(err){
                 res.json(err);
             }else{
+                console.log("cantidad de incidentes por estado-->", result);
                 res.json(result);
             }
         }
@@ -402,6 +404,7 @@ router.get('/generarGraficosMensuales', (req:Request, res:Response)=>{
         if(data){
             res.json(data);
             lineChart.generarGraficoIncidentesMensuales(data);
+            console.log('lineChart.getData()-->', lineChart.getData());
             server.io.emit('line-chart', lineChart.getData());
             
         }
@@ -440,7 +443,7 @@ router.post('/asignarIncidente', (req:Request, res:Response)=>{
     const server = Server.getInstancia();
     const inc_asig = new incidentes_asignados();
 
-    //cambio el estado del incidente a Asignado antes de persistirlo.
+    //cambio el estado del incidente Asignado antes de persistirlo.
     incidente.findByIdAndUpdate(_idIncidente,{estado:"Asignado"}, (err, data)=>{
         if(err){
             console.log(err);
@@ -512,6 +515,17 @@ router.get('/incidentesAsignados/:ids', (req:Request, res:Response)=>{
             }
         })
         });
+
+
+router.get('/incidentesRechazados', (req:Request, res:Response)=>{
+    rechazados.find({}, (err, data)=>{
+        if(err){
+            res.json(err);
+        }else{
+            res.json(data);
+        }
+    }).populate('equipo').populate('incidente');
+});
     
     
    
@@ -554,7 +568,30 @@ router.post('/cambiarEstadoIncidente/', (req:Request, res:Response)=>{
 });
 
 
-router.post('/guardarRechazados', (req:Request, res:Response)=>{
+
+
+router.post('/removerIncidenteAsignado', (req:Request, res:Response)=>{
+    let flag = false;
+    console.log('id que llega a removerIncidenteAsignado',req.body.id);
+    asignados.remove({_id: req.body.id}, (error)=>{
+        if(error){
+            res.json(error);
+        }else{
+            flag = true;
+        }
+    });
+
+    if(flag){
+        asignados.find({}, (err, data)=>{
+            console.log(data);
+            res.json(data);
+        });
+    }
+});
+
+
+ 
+ router.post('/guardarRechazados', (req:Request, res:Response)=>{
     let recha = new rechazados();
    
     recha.equipo = req.body.equipo;
@@ -570,13 +607,16 @@ router.post('/guardarRechazados', (req:Request, res:Response)=>{
     });
 });
 
-router.post('/integrantesDeMiEquipo',(request:Request, response:Response)=>{
-    let condicion = request.body.equipo;
-    usuario.find({equipo:{$in:condicion}}, (err, data)=>{
+
+
+router.delete('/borrarIncidenteRechazado/:id', (req:Request, res:Response)=>{
+    let _id = req.params.id;
+    console.log("item-->",_id);
+    rechazados.deleteOne({_id:_id}, (err)=>{
         if(err){
-            response.status(404).json(err);
+            res.json(err);
         }else{
-            response.json(data);
+            res.json('ok');
         }
     });
 });
@@ -610,6 +650,19 @@ router.post('/guardar_notificacion', (request:Request, response:Response)=>{
     
     
    });
+
+
+   router.post('/integrantesDeMiEquipo',(request:Request, response:Response)=>{
+    let condicion = request.body.equipo;
+    usuario.find({equipo:{$in:condicion}},(err, data)=>{
+        if(err){
+            response.status(404).json(err);
+        }else{
+            response.json(data);
+        }
+    });
+   });   
+
 
  
 router.get('/allNotifications', (req:Request, res:Response)=>{
@@ -648,5 +701,3 @@ router.post('/conditionNotifications', (req:Request, res:Response)=>{
         }
     });
 });
-
-
