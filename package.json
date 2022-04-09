@@ -17,7 +17,7 @@
     "cors": "^2.8.5",
     "express": "^4.16.4",
     "jwt-simple": "^0.5.6",
-    "moment": "^2.24.0",
+    "moment": "^2.29.2",
     "mongoose": "^5.4.22",
     "multer": "^1.4.1",
     "multiparty": "^4.2.1",
